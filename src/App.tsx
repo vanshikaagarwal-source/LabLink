@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { FlaskConical, Search, CalendarDays, ShieldCheck } from 'lucide-react';
 import FairSlotPanel from './components/FairSlotPanel';
 import EquipmentDiscovery from './components/EquipmentDiscovery';
+import AIProjectPlanner from './components/AIProjectPlanner';
 import BookingRequestForm, { DemoStudent } from './components/BookingRequestForm';
 import MyBookings from './components/MyBookings';
 import AdminAnalytics from './components/AdminAnalytics';
@@ -15,6 +16,7 @@ const DEMO_STUDENT: DemoStudent = { name: 'Sarah Chen', id: 'STU-2023-ME-409' };
 
 const ROLE_LINKS: Record<Role, { href: string; label: string }[]> = {
   Student: [
+    { href: '#ai-heading', label: 'AI planner' },
     { href: '#discovery-heading', label: 'Find equipment' },
     { href: '#booking-heading', label: 'Request a slot' },
     { href: '#mybookings-heading', label: 'My bookings' },
@@ -137,6 +139,7 @@ function App() {
 
         {role === 'Student' && (
           <div className="space-y-8">
+            <AIProjectPlanner equipment={INITIAL_EQUIPMENT} onRequest={requestEquipment} />
             <EquipmentDiscovery equipment={INITIAL_EQUIPMENT} onRequest={requestEquipment} />
             <BookingRequestForm
               student={DEMO_STUDENT}

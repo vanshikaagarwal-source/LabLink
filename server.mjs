@@ -3,6 +3,7 @@
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { extname, join, normalize, resolve } from 'node:path';
+import { handlePlan } from './lib/gemini.mjs';
 
 const DIST = resolve('dist');
 const PORT = Number(process.env.PORT) || 8080;
@@ -17,7 +18,7 @@ const SECURITY_HEADERS = {
   'Referrer-Policy': 'strict-origin-when-cross-origin',
   'Content-Security-Policy':
     "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-    "font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-ancestors 'none'",
+    "font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'",
 };
 
 async function fileFor(urlPath) {
@@ -30,8 +31,39 @@ async function fileFor(urlPath) {
   return null;
 }
 
+function readJson(req, limit = 10_000) {
+  return new Promise((resolveBody) => {
+    let size = 0;
+    const chunks = [];
+    req.on('data', (c) => {
+      size += c.length;
+      if (size > limit) req.destroy();
+      else chunks.push(c);
+    });
+    req.on('end', () => {
+      try {
+        resolveBody(JSON.parse(Buffer.concat(chunks).toString('utf8')));
+      } catch {
+        resolveBody(null);
+      }
+    });
+    req.on('error', () => resolveBody(null));
+  });
+}
+
 createServer(async (req, res) => {
   try {
+    const pathname = new URL(req.url ?? '/', 'http://localhost').pathname;
+    if (pathname === '/api/plan') {
+      if (req.method !== 'POST') {
+        res.writeHead(405, { ...SECURITY_HEADERS, Allow: 'POST' }).end();
+        return;
+      }
+      const { status, json } = await handlePlan(await readJson(req));
+      res.writeHead(status, { ...SECURITY_HEADERS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify(json));
+      return;
+    }
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, SECURITY_HEADERS).end();
       return;
